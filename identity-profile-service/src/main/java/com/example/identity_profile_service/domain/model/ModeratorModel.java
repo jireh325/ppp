@@ -1,4 +1,21 @@
 package com.example.identity_profile_service.domain.model;
 
-public class ModeratorModel {
+import com.example.identity_profile_service.domain.enums.ModerationScopeType;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.experimental.SuperBuilder;
+import java.time.LocalDateTime;
+
+@Data
+@EqualsAndHashCode(callSuper = true)
+@SuperBuilder
+public class ModeratorModel extends CitizenModel {
+    private LocalDateTime approvedAt;
+    private ModerationScopeType moderationScope;
+    private String approvedBy; // Référence à l'admin qui a approuvé
+
+    @Override
+    public String getUserType() {
+        return "MODERATOR";
+    }
 }

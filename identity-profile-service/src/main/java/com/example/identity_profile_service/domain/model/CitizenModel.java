@@ -3,8 +3,6 @@ package com.example.identity_profile_service.domain.model;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.SuperBuilder;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -12,13 +10,11 @@ import java.util.List;
 public class CitizenModel extends UserModel {
     private Integer reputation;
     private Integer votingPower;
-    private List<PartyMembership> partyMemberships;
 
     public CitizenModel() {
         super();
         this.reputation = 0;
         this.votingPower = 1;
-        this.partyMemberships = new ArrayList<>();
     }
 
     @Override
@@ -26,30 +22,27 @@ public class CitizenModel extends UserModel {
         return "CITIZEN";
     }
 
-    public void submitIdea() {
-        // Logique de soumission d'idée
-        this.reputation += 5;
+    // Méthodes liées uniquement à l'identité
+    public void increaseReputation(int points) {
+        this.reputation += points;
     }
 
-    public void vote() {
-        // Logique de vote
-        this.reputation += 1;
+    public void decreaseReputation(int points) {
+        this.reputation = Math.max(0, this.reputation - points);
     }
 
-    public PartyMembership joinParty(Party party) {
-        PartyMembership membership = PartyMembership.builder()
-                .citizen(this)
-                .party(party)
-                .role(MembershipRole.MEMBER)
-                .isApproved(false)
-                .build();
-
-        this.partyMemberships.add(membership);
-        return membership;
-    }
-
-    public void requestModeratorRole(String motivation) {
-        // Cette méthode déclenchera un événement de domaine
-        // pour créer une ModeratorRequest
+    public void updateVotingPower() {
+        // Le pouvoir de vote évolue avec la réputation
+        if (this.reputation >= 1500) {
+            this.votingPower = 5; // Citoyen très influent
+        } else if (this.reputation >= 1000) {
+            this.votingPower = 4; // influent
+        } else if (this.reputation >= 500) {
+            this.votingPower = 3; // Citoyen actif
+        } else if (this.reputation >= 100) {
+            this.votingPower = 2; // Citoyen engagé
+        } else {
+            this.votingPower = 1; // Nouveau citoyen
+        }
     }
 }
