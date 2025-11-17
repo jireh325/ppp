@@ -1,5 +1,6 @@
 package com.example.identity_profile_service.application.service;
 
+import com.example.identity_profile_service.application.command.*;
 import com.example.identity_profile_service.application.port.in.RoleManagementUseCase;
 import com.example.identity_profile_service.application.port.out.AuditPort;
 import com.example.identity_profile_service.application.port.out.UserRepositoryPort;
@@ -27,17 +28,17 @@ public class RoleManagementService implements RoleManagementUseCase {
     private final AuditPort auditPort;
 
     @Override
-    public void promoteToModerator(UUID citizenId, UUID approvedByAdminId, ModerationScopeType scope) {
+    public void promoteToModerator(PromoteToModeratorCommand command) {
         // 1. Vérifier que le promoteur est un admin
-        AdministratorModel admin = getAdministrator(approvedByAdminId);
+        AdministratorModel admin = getAdministrator(command.approvedByAdminId());
 
         // 2. Vérifier les permissions du promoteur
-        if (!canUserPromoteRole(admin.getId(), "MODERATOR")) {
+        if (!canUserPromoteRole(new CanUserPromoteRoleCommand(admin.getId(), "MODERATOR"))) {
             throw new SecurityException("Admin not authorized to promote to moderator");
         }
 
         // 3. Récupérer le citoyen
-        CitizenModel citizen = getCitizen(citizenId);
+        CitizenModel citizen = getCitizen(command.citizenId());
 
         // 4. Vérifier que le citoyen est éligible
         validateCitizenEligibilityForModeration(citizen);
@@ -55,7 +56,7 @@ public class RoleManagementService implements RoleManagementUseCase {
                 .reputation(citizen.getReputation())
                 .votingPower(citizen.getVotingPower())
                 .approvedAt(LocalDateTime.now())
-                .moderationScope(scope)
+                .moderationScope(command.scope())
                 .approvedBy(admin.getId().toString())
                 .build();
 
@@ -64,32 +65,32 @@ public class RoleManagementService implements RoleManagementUseCase {
 
         // 7. Publier les événements
         eventPublisher.publishRolePromoted(
-                citizenId,
+                command.citizenId(),
                 "CITIZEN",
                 "MODERATOR",
                 admin.getId().toString()
         );
 
         eventPublisher.publishModeratorScopeChanged(
-                citizenId,
+                command.citizenId(),
                 null,
-                scope
+                command.scope()
         );
 
         // 8. Auditer l'action
         auditPort.logRoleChange(
                 admin.getId(),
-                citizenId,
+                command.citizenId(),
                 "CITIZEN",
                 "MODERATOR",
-                "Promoted to moderator with scope: " + scope
+                "Promoted to moderator with scope: " + command.scope()
         );
     }
 
     @Override
-    public void demoteModerator(UUID moderatorId, String reason) {
+    public void demoteModerator(DemoteModeratorCommand command) {
         // 1. Récupérer le modérateur
-        ModeratorModel moderator = getModerator(moderatorId);
+        ModeratorModel moderator = getModerator(command.userId());
 
         // 2. Créer le citoyen à partir du modérateur
         CitizenModel citizen = CitizenModel.builder()
@@ -110,27 +111,27 @@ public class RoleManagementService implements RoleManagementUseCase {
 
         // 4. Publier les événements
         eventPublisher.publishRoleDemoted(
-                moderatorId,
+                command.userId(),
                 "MODERATOR",
                 "CITIZEN",
-                reason
+                command.reason()
         );
 
         // 5. Auditer l'action
         auditPort.logRoleChange(
                 null, // System action
-                moderatorId,
+                command.userId(),
                 "MODERATOR",
                 "CITIZEN",
-                "Demoted from moderator: " + reason
+                "Demoted from moderator: " + command.reason()
         );
     }
 
     @Override
-    public void assignAdministratorRole(UUID userId, AccessLevel accessLevel, Department department) {
+    public void assignAdministratorRole(AssignAdministratorRoleCommand command) {
         // 1. Récupérer l'utilisateur
-        UserModel user = userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("User not found: " + userId));
+        UserModel user = userRepository.findById(command.userId())
+                .orElseThrow(() -> new UserNotFoundException("User not found: " + command.userId()));
 
         // 2. Vérifier que ce n'est pas déjà un admin
         if (user instanceof AdministratorModel) {
@@ -147,8 +148,8 @@ public class RoleManagementService implements RoleManagementUseCase {
                 .createdAt(user.getCreatedAt())
                 .lastLogin(user.getLastLogin())
                 .status(user.getStatus())
-                .accessLevel(accessLevel)
-                .department(department)
+                .accessLevel(command.accessLevel())
+                .department(command.department())
                 .build();
 
         // 4. Sauvegarder
@@ -157,7 +158,7 @@ public class RoleManagementService implements RoleManagementUseCase {
         // 5. Publier l'événement
         String previousRole = getUserType(user);
         eventPublisher.publishRolePromoted(
-                userId,
+                command.userId(),
                 previousRole,
                 "ADMINISTRATOR",
                 "SYSTEM" // Ou l'admin qui a fait l'action
@@ -166,23 +167,25 @@ public class RoleManagementService implements RoleManagementUseCase {
         // 6. Auditer
         auditPort.logRoleChange(
                 null, // System action
-                userId,
+                command.userId(),
                 previousRole,
                 "ADMINISTRATOR",
-                "Assigned administrator role with access: " + accessLevel
+                "Assigned administrator role with access: " + command.accessLevel()
         );
     }
 
     @Override
-    public void changeModeratorScope(UUID moderatorId, ModerationScopeType newScope, UUID changedByAdminId) {
+    public void changeModeratorScope(ChangeModeratorScopeCommand command) {
         // 1. Vérifier que le changeur est un admin
-        AdministratorModel admin = getAdministrator(changedByAdminId);
+        AdministratorModel admin = getAdministrator(command.adminId());
 
         // 2. Récupérer le modérateur
-        ModeratorModel moderator = getModerator(moderatorId);
+        ModeratorModel moderator = getModerator(command.userId());
+
+
 
         // 3. Vérifier les permissions
-        if (!canUserManageUser(admin.getId(), moderatorId)) {
+        if (!canUserManageUser(new CanUserManageUserCommand(admin.getId(), command.userId()))) {
             throw new SecurityException("Admin not authorized to change moderator scope");
         }
 
@@ -190,26 +193,26 @@ public class RoleManagementService implements RoleManagementUseCase {
         ModerationScopeType oldScope = moderator.getModerationScope();
 
         // 5. Mettre à jour le scope
-        moderator.setModerationScope(newScope);
+        moderator.setModerationScope(command.newScope());
         userRepository.save(moderator);
 
         // 6. Publier l'événement
-        eventPublisher.publishModeratorScopeChanged(moderatorId, oldScope, newScope);
+        eventPublisher.publishModeratorScopeChanged(command.userId(), oldScope, command.newScope());
 
         // 7. Auditer
         auditPort.logAdminAction(
                 admin.getId(),
                 "CHANGE_MODERATOR_SCOPE",
-                moderatorId,
-                "Scope changed from " + oldScope + " to " + newScope
+                command.userId(),
+                "Scope changed from " + oldScope + " to " + command.newScope()
         );
     }
 
     @Override
-    public boolean canUserPromoteRole(UUID promoterId, String targetRole) {
+    public boolean canUserPromoteRole(CanUserPromoteRoleCommand command) {
         // 1. Récupérer le promoteur
-        UserModel promoter = userRepository.findById(promoterId)
-                .orElseThrow(() -> new UserNotFoundException("Promoter not found: " + promoterId));
+        UserModel promoter = userRepository.findById(command.userId())
+                .orElseThrow(() -> new UserNotFoundException("Promoter not found: " + command.userId()));
 
         // 2. Seuls les admins peuvent promouvoir
         if (!(promoter instanceof AdministratorModel admin)) {
@@ -219,8 +222,8 @@ public class RoleManagementService implements RoleManagementUseCase {
         // 3. Vérifier les permissions selon le niveau d'accès
         return switch (admin.getAccessLevel()) {
             case SUPER_ADMIN -> true; // Peut tout faire
-            case MUNICIPAL -> !"SUPER_ADMIN".equals(targetRole); // Ne peut pas créer de super admin
-            case DEPARTMENTAL -> "MODERATOR".equals(targetRole); // Peut seulement promouvoir modérateurs
+            case MUNICIPAL -> !"SUPER_ADMIN".equals(command.targetRole()); // Ne peut pas créer de super admin
+            case DEPARTMENTAL -> "MODERATOR".equals(command.targetRole()); // Peut seulement promouvoir modérateurs
             case DISTRICT -> false; // Ne peut promouvoir personne
             case TECHNICAL -> false; // Pas de permissions de promotion
             case SUPPORT -> false; // Pas de permissions de promotion
@@ -228,15 +231,15 @@ public class RoleManagementService implements RoleManagementUseCase {
     }
 
     @Override
-    public boolean canUserManageUser(UUID managerId, UUID targetUserId) {
+    public boolean canUserManageUser(CanUserManageUserCommand command) {
         // 1. Récupérer le manager et la cible
-        UserModel manager = userRepository.findById(managerId)
-                .orElseThrow(() -> new UserNotFoundException("Manager not found: " + managerId));
-        UserModel target = userRepository.findById(targetUserId)
-                .orElseThrow(() -> new UserNotFoundException("Target user not found: " + targetUserId));
+        UserModel manager = userRepository.findById(command.managerId())
+                .orElseThrow(() -> new UserNotFoundException("Manager not found: " + command.managerId()));
+        UserModel target = userRepository.findById(command.targetUserId())
+                .orElseThrow(() -> new UserNotFoundException("Target user not found: " + command.targetUserId()));
 
         // 2. Un utilisateur peut se gérer lui-même
-        if (managerId.equals(targetUserId)) {
+        if (command.managerId().equals(command.targetUserId())) {
             return true;
         }
 
