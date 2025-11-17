@@ -1,10 +1,23 @@
 spring:
   application:
     name: identity-profile-service
-server:
-  port: 0
+  server:
+    port: 0
 
-# Note: config should come from env vars or k8s ConfigMap/Secret in prod
+  datasource:
+    url: jdbc:postgresql://localhost:5432/basic_identity_service_db
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:password}
+    driver-class-name: org.postgresql.Driver
+
+    jpa:
+      hibernate:
+        ddl-auto: validate
+      show-sql: false
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.PostgreSQLDialect
+
 logging:
   level:
     root: INFO
