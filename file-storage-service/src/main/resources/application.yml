@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: file-storage-service
+server:
+  port: 0
+
+# Note: config should come from env vars or k8s ConfigMap/Secret in prod
+logging:
+  level:
+    root: INFO
