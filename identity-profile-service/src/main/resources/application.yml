@@ -5,7 +5,7 @@ spring:
     port: 0
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/basic_identity_service_db
+    url: jdbc:postgresql://localhost:5432/identity.profil_service_db
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:password}
     driver-class-name: org.postgresql.Driver
