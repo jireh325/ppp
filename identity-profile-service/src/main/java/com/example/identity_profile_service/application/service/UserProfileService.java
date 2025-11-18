@@ -4,10 +4,13 @@ import com.example.identity_profile_service.application.command.CreateUserComman
 import com.example.identity_profile_service.application.command.DeactivateUserCommand;
 import com.example.identity_profile_service.application.command.UpdateUserProfileCommand;
 import com.example.identity_profile_service.application.port.in.UserProfileUseCase;
+import com.example.identity_profile_service.application.port.out.EventPublisherPort;
 import com.example.identity_profile_service.application.port.out.UserRepositoryPort;
 import com.example.identity_profile_service.application.dto.UserProfileDto;
 import com.example.identity_profile_service.application.query.SearchUsersQuery;
 import com.example.identity_profile_service.domain.enums.AccessLevel;
+import com.example.identity_profile_service.domain.enums.Department;
+import com.example.identity_profile_service.domain.enums.UserRole;
 import com.example.identity_profile_service.domain.enums.UserStatus;
 import com.example.identity_profile_service.domain.exception.UserAlreadyExistsException;
 import com.example.identity_profile_service.domain.exception.UserNotFoundException;
@@ -25,6 +28,7 @@ import java.util.UUID;
 public class UserProfileService implements UserProfileUseCase {
 
     private final UserRepositoryPort userRepository;
+    private final EventPublisherPort eventPublisher;
 
     @Override
     public UserProfileDto getUserProfile(UUID userId) {
@@ -43,20 +47,47 @@ public class UserProfileService implements UserProfileUseCase {
             throw new UserAlreadyExistsException("User with username " + command.username() + " already exists");
         }
 
+        if (command.role().equals(UserRole.ADMINISTRATOR)){
+            AdministratorModel newCitizen = AdministratorModel.builder()
+                    .email(command.email())
+                    .username(command.username())
+                    .password(command.password())
+                    .firstName(command.firstName())
+                    .lastName(command.lastName())
+                    .createdAt(java.time.LocalDateTime.now())
+                    .lastLogin(java.time.LocalDateTime.now())
+                    .role(command.role())
+                    .status(UserStatus.ACTIVE)
+                    .accessLevel(AccessLevel.TECHNICAL)
+                    .department(Department.MODERATION_CENTRALE)
+                    .build();
+
+            AdministratorModel saved = (AdministratorModel) userRepository.save(newCitizen);
+
+            eventPublisher.publishUserCreated(saved);
+
+            return toDto(saved);
+        }
+
         // Créer un nouveau citoyen (type par défaut)
         CitizenModel newCitizen = CitizenModel.builder()
                 .email(command.email())
                 .username(command.username())
+                .password(command.password())
                 .firstName(command.firstName())
                 .lastName(command.lastName())
                 .createdAt(java.time.LocalDateTime.now())
                 .lastLogin(java.time.LocalDateTime.now())
+                .role(command.role())
                 .status(UserStatus.ACTIVE)
                 .reputation(0)
                 .votingPower(1)
                 .build();
 
         CitizenModel saved = (CitizenModel) userRepository.save(newCitizen);
+
+        eventPublisher.publishUserCreated(saved);
+
         return toDto(saved);
     }
 
@@ -85,10 +116,13 @@ public class UserProfileService implements UserProfileUseCase {
                     });
         }
 
-        user.updateProfile(command.firstName(), command.lastName(), command.email());
+        user.updateProfile(command.username(), command.firstName(), command.lastName(), command.email(), command.role(), command.status(), command.urlProfil(), command.password());
         user.setUsername(command.username());
 
         UserModel updated = userRepository.save(user);
+
+        eventPublisher.publishUserUpdated(updated);
+
         return toDto(updated);
     }
 
@@ -103,6 +137,8 @@ public class UserProfileService implements UserProfileUseCase {
         }
 
         user.setStatus(UserStatus.SUSPENDED);
+
+        eventPublisher.publishUserDeactivated(user.getId(), command.reason());
         userRepository.save(user);
 
         //LOG DE L'ACTION

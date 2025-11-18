@@ -15,6 +15,7 @@ public class UserProfileDto {
     // Champs communs à tous les users
     private UUID id;
     private String username;
+    private String password;
     private String email;
     private String firstName;
     private String lastName;

@@ -25,7 +25,7 @@ public class RoleManagementService implements RoleManagementUseCase {
 
     private final UserRepositoryPort userRepository;
     private final EventPublisherPort eventPublisher;
-    private final AuditPort auditPort;
+    //private final AuditPort auditPort;
 
     @Override
     public void promoteToModerator(PromoteToModeratorCommand command) {
@@ -77,14 +77,14 @@ public class RoleManagementService implements RoleManagementUseCase {
                 command.scope()
         );
 
-        // 8. Auditer l'action
+        /* 8. Auditer l'action
         auditPort.logRoleChange(
                 admin.getId(),
                 command.citizenId(),
                 "CITIZEN",
                 "MODERATOR",
                 "Promoted to moderator with scope: " + command.scope()
-        );
+        );*/
     }
 
     @Override
@@ -117,14 +117,14 @@ public class RoleManagementService implements RoleManagementUseCase {
                 command.reason()
         );
 
-        // 5. Auditer l'action
+        /* 5. Auditer l'action
         auditPort.logRoleChange(
                 null, // System action
                 command.userId(),
                 "MODERATOR",
                 "CITIZEN",
                 "Demoted from moderator: " + command.reason()
-        );
+        );*/
     }
 
     @Override
@@ -164,14 +164,14 @@ public class RoleManagementService implements RoleManagementUseCase {
                 "SYSTEM" // Ou l'admin qui a fait l'action
         );
 
-        // 6. Auditer
+        /* 6. Auditer
         auditPort.logRoleChange(
                 null, // System action
                 command.userId(),
                 previousRole,
                 "ADMINISTRATOR",
                 "Assigned administrator role with access: " + command.accessLevel()
-        );
+        );*/
     }
 
     @Override
@@ -199,13 +199,13 @@ public class RoleManagementService implements RoleManagementUseCase {
         // 6. Publier l'événement
         eventPublisher.publishModeratorScopeChanged(command.userId(), oldScope, command.newScope());
 
-        // 7. Auditer
+        /* 7. Auditer
         auditPort.logAdminAction(
                 admin.getId(),
                 "CHANGE_MODERATOR_SCOPE",
                 command.userId(),
                 "Scope changed from " + oldScope + " to " + command.newScope()
-        );
+        );*/
     }
 
     @Override

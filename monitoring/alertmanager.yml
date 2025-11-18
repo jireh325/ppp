@@ -1,0 +1,50 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  # Le receiver par défaut si aucune règle ne matche
+  receiver: "default"
+
+  # Regroupement des alertes similaires
+  group_by: ["alertname", "instance", "severity"]
+
+  group_wait: 30s
+  group_interval: 2m
+  repeat_interval: 4h
+
+  routes:
+    # Exemple : alerte critique
+    - match:
+        severity: "critical"
+      receiver: "critical"
+      repeat_interval: 1h
+
+    # Exemple : alerte warning
+    - match:
+        severity: "warning"
+      receiver: "warning"
+      repeat_interval: 2h
+
+receivers:
+  # Receiver par défaut (log dans Alertmanager)
+  - name: "default"
+    email_configs: []
+    webhook_configs: []
+
+  # Receiver pour alertes critiques
+  - name: "critical"
+    email_configs: []
+    webhook_configs: []
+
+  # Receiver pour alertes warning
+  - name: "warning"
+    email_configs: []
+    webhook_configs: []
+
+inhibit_rules:
+  # Empêche les alertes "warning" de spammer quand une alerte "critical" est déjà active
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "instance"]

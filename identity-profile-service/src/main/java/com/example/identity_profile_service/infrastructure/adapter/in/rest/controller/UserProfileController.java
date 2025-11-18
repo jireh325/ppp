@@ -52,8 +52,11 @@ public class UserProfileController {
                 userId,
                 command.email(),
                 command.username(),
+                command.password(),
                 command.firstName(),
                 command.lastName(),
+                command.role(),
+                command.status(),
                 command.urlProfil()
         );
 
@@ -87,8 +90,11 @@ public class UserProfileController {
                 userId,
                 command.email(),
                 command.username(),
+                command.password(),
                 command.firstName(),
                 command.lastName(),
+                command.role(),
+                command.status(),
                 command.urlProfil()
         );
 

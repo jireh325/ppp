@@ -1,22 +1,66 @@
+server:
+  port: 3100
+
+
 spring:
   application:
     name: identity-profile-service
-  server:
-    port: 0
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/identity.profil_service_db
+    url: jdbc:postgresql://localhost:5432/identity_profile_service_db
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:password}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
-    jpa:
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
       hibernate:
-        ddl-auto: validate
-      show-sql: false
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:localhost:9092}
+
+    consumer:
+      group-id: identity-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
       properties:
-        hibernate:
-          dialect: org.hibernate.dialect.PostgreSQLDialect
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.example.identity_profile_service.infrastructure.adapter.in.event,com.example.**"
+        spring.json.use.type.headers: false
+
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+
+    topics:
+      moderator-requests-approved: "moderator-requests-approved"
+      user-created: "user-created"
+      user-updated: "user-updated"
+      user-deactivated: "user-deactivated"
+      user-status-changed: "user-status-changed"
+      role-promoted: "role-promoted"
+      role-demoted: "role-demoted"
+      moderator-scope-changed: "moderator-scope-changed"
+      reputation-changed: "reputation-changed"
+      votingpower-changed: "votingpower-changed"
+      admin-action: "admin-action"
+      service-health: "service-health"
+      identity-events-dlq: "identity-events-dlq"
 
 logging:
   level:

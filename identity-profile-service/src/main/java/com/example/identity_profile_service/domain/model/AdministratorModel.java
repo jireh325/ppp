@@ -13,6 +13,12 @@ public class AdministratorModel extends UserModel {
     private AccessLevel accessLevel;
     private Department department;
 
+    public AdministratorModel() {
+        super();
+        this.accessLevel = AccessLevel.TECHNICAL;
+        this.department = Department.MODERATION_CENTRALE;
+    }
+
     @Override
     public String getUserType() {
         return "ADMINISTRATOR";

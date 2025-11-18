@@ -1,0 +1,1 @@
+CREATE DATABASE identity_profile_service_db;
